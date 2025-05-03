@@ -1,22 +1,42 @@
 # ScrapperPython
 
-Aplicación en Python para extraer y guardar información de todas las noticias de un listado paginado de una web.
+Aplicación en Python para extraer y guardar información de todas las noticias de un listado paginado de una web. Actualmente soporta los dominios www.ftf.es y www.fiflp.com, cada uno con su propio formato de extracción.
 
 ## Descripción
 Este proyecto permite obtener y guardar los datos de todas las noticias listadas en una página web con paginación. Utiliza las librerías `requests` para realizar las peticiones HTTP y `BeautifulSoup` para analizar el HTML y extraer la información deseada.
 
 El script recorre todas las páginas del listado, obtiene los enlaces de las noticias y guarda los datos de cada noticia en un archivo `.json` dentro de una carpeta específica.
 
-## Funcionamiento
+## Funcionamiento general
 - Se solicita la URL base del listado de noticias (por ejemplo, la página principal de un blog o sección de noticias).
 - El script recorre todas las páginas del listado añadiendo el parámetro `?p=2`, `?p=3`, etc., hasta que no haya más noticias.
 - De cada noticia, se extraen los siguientes datos:
-  - **titulo**: El texto del primer `<h2>` dentro de `<article>`.
-  - **contenido**: Todo el texto de los `<p>` dentro de `<article>`, concatenado y separado por saltos de línea.
-  - **fecha**: El texto de la etiqueta `<i>` con clase `ti-calendar` dentro de `<article>`.
-  - **imagenes**: Lista de URLs absolutas de todas las imágenes (`<img>`) dentro de `<article>`.
+  - **titulo**
+  - **contenido**
+  - **fecha**
+  - **imagenes**
 - Los datos de cada noticia se guardan en un archivo `.json` dentro de una carpeta cuyo nombre corresponde al título del listado (limpiado y acortado).
 - El nombre de cada archivo es la fecha de la noticia (sin espacios), seguida de un guion bajo y 20 caracteres del título (sin espacios ni caracteres extraños).
+
+## Soporte para dominios y particularidades
+
+### www.ftf.es
+- **Listado de noticias:**
+  - Cada noticia está en una etiqueta `<article>`, el enlace está en `<h3><a></a></h3>`.
+- **Extracción de datos de la noticia:**
+  - **Título:** Primer `<h2>` dentro de `<article>`
+  - **Contenido:** Todos los `<p>` dentro de `<article>`
+  - **Fecha:** Texto de la etiqueta `<i class="ti-calendar">` (ver código para detalles)
+  - **Imágenes:** Todas las `<img>` dentro de `<article>`
+
+### www.fiflp.com
+- **Listado de noticias:**
+  - Buscar `<section class="container">`, dentro de ella cada noticia está en `<div class="item">`, el enlace está en el `<a>` dentro de ese div.
+- **Extracción de datos de la noticia:**
+  - **Título:** Dentro de `<header class="blog-post">`, el contenido de `<h1>`
+  - **Contenido:** Todos los `<p>` dentro de `<article>`
+  - **Fecha:** Dentro de `<header class="blog-post">` → `<small class="fsize13">`, el contenido del segundo `<span>`
+  - **Imágenes:** Todas las `<img>` dentro de `<section class="container">`
 
 ## Requisitos
 - Python 3.7 o superior
