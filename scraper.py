@@ -184,8 +184,15 @@ def guardar_noticias(url_base):
     total, urls, titulo_listado = contar_paginas_paginadas(url_base)
     print(f"Total de páginas paginadas encontradas: {total}")
     print(f"Total de URLs de noticias encontradas: {len(urls)}")
-    # Crear carpeta con el nombre del listado
-    nombre_carpeta = limpiar_nombre_archivo(titulo_listado or 'listado_noticias')
+    dominio = urlparse(url_base).netloc
+    if dominio == "www.ftf.es":
+        subdirectorio = "ftf"
+    elif dominio == "www.fiflp.com":
+        subdirectorio = "fiflp"
+    else:
+        subdirectorio = "otros"
+    # Crear carpeta con el nombre del listado dentro del subdirectorio correspondiente
+    nombre_carpeta = os.path.join(subdirectorio, limpiar_nombre_archivo(titulo_listado or 'listado_noticias'))
     if not os.path.exists(nombre_carpeta):
         os.makedirs(nombre_carpeta)
     for url in urls:
