@@ -14,6 +14,12 @@ class NewsData(BaseModel):
     fecha: str
     imagenes: List[str]
 
+# Nueva estructura para documentos descargables
+class DocumentoDescargable(BaseModel):
+    titulo: str
+    descripcion: str
+    url_descarga: str
+
 
 def extraer_datos(url) -> NewsData | None:
     """
@@ -105,6 +111,38 @@ def extraer_datos(url) -> NewsData | None:
         print(f"Error validando datos con Pydantic: {e}")
         return None
 
+# NUEVA FUNCIÓN: Extraer documentos descargables de páginas tipo circulares FTF
+def extraer_documentos_descargables(url) -> List[DocumentoDescargable]:
+    respuesta = requests.get(url)
+    if respuesta.status_code != 200:
+        print(f"Error al acceder a la URL: {respuesta.status_code}")
+        return []
+    soup = BeautifulSoup(respuesta.text, 'html.parser')
+    documentos = []
+    urls_vistos = set()
+    # Buscar solo bloques con enlace de descarga
+    for enlace in soup.find_all('a', string=re.compile(r'Descargar', re.I)):
+        bloque = enlace.find_parent(['section', 'div', 'article'])
+        if not bloque:
+            continue
+        # Buscar título (h3 o h4) antes del enlace
+        h3 = bloque.find(['h3', 'h4'])
+        titulo = h3.get_text(strip=True) if h3 else ''
+        # Buscar descripción (primer <p> después del título)
+        descripcion = ''
+        if h3:
+            p = h3.find_next('p')
+            if p:
+                descripcion = p.get_text(strip=True)
+        url_descarga = urljoin(url, enlace.get('href'))
+        if url_descarga not in urls_vistos and titulo and url_descarga:
+            documentos.append(DocumentoDescargable(
+                titulo=titulo,
+                descripcion=descripcion,
+                url_descarga=url_descarga
+            ))
+            urls_vistos.add(url_descarga)
+    return documentos
 
 def contar_paginas_paginadas(url_base, max_paginas=100):
     """
@@ -208,12 +246,46 @@ def guardar_noticias(url_base):
         else:
             print(f"No se pudo extraer la noticia: {url}")
 
+# NUEVA FUNCIÓN: Guardar documentos descargables
+def guardar_documentos_descargables(url):
+    documentos = extraer_documentos_descargables(url)
+    print(f"Total de documentos descargables encontrados: {len(documentos)}")
+    # Carpeta destino fija
+    carpeta_destino = "ftf_documentos"
+    if not os.path.exists(carpeta_destino):
+        os.makedirs(carpeta_destino)
+    # Obtener la ruta de la URL sin el dominio y formatear el nombre del archivo
+    parsed = urlparse(url)
+    ruta = parsed.path.lstrip('/')  # quitar barra inicial
+    if not ruta:
+        ruta = 'root'
+
+    # Quitar la última barra de la ruta
+    ruta = ruta.rstrip('/')
+
+    # Reemplazar barras por guiones bajos, mantener guiones originales y quitar otros caracteres problemáticos
+    ruta = ruta.replace('/', '_')
+    nombre_archivo = re.sub(r'[^a-zA-Z0-9_\-]', '', ruta)
+    if not nombre_archivo.endswith('.json'):
+        nombre_archivo += '.json'
+    ruta_archivo = os.path.join(carpeta_destino, nombre_archivo)
+    with open(ruta_archivo, 'w', encoding='utf-8') as f:
+        json.dump([doc.model_dump() for doc in documentos], f, ensure_ascii=False, indent=2)
+    print(f"Lista de documentos guardada: {ruta_archivo}")
 
 def main():
-    print("Guarda todas las noticias del listado paginado")
-    url_base = input("Introduce la URL base del listado a analizar: ")
-    guardar_noticias(url_base)
-
+    print("¿Qué tipo de escaneo deseas realizar?")
+    print("1. Escanear noticias (funcionamiento anterior)")
+    print("2. Escanear documentos descargables (nuevo para páginas tipo circulares FTF)")
+    opcion = input("Introduce 1 o 2: ").strip()
+    if opcion == '1':
+        url_base = input("Introduce la URL base del listado a analizar: ")
+        guardar_noticias(url_base)
+    elif opcion == '2':
+        url = input("Introduce la URL de la página de documentos descargables: ")
+        guardar_documentos_descargables(url)
+    else:
+        print("Opción no válida.")
 
 if __name__ == "__main__":
     main() 
